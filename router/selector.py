@@ -19,6 +19,7 @@ from typing import Optional
 from uuid import UUID
 
 import asyncpg
+from .reservation import ensure_active_windows
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,11 @@ WHERE
             WHERE qd.model_id = m.id
               AND qd.active = true
               AND qu.window_end > NOW()
-              AND (qu.used + qu.reserved + $3) > qd.limit_value
+              AND (
+                  (qd.quota_type = 'TOKENS' AND (qu.used + qu.reserved + $3) > qd.limit_value)
+                  OR
+                  (qd.quota_type = 'REQUESTS' AND (qu.used + qu.reserved + 1) > qd.limit_value)
+              )
         )
     )
 ORDER BY
@@ -118,6 +123,7 @@ async def select_model(
 
     async with pool.acquire() as conn:
         async with conn.transaction():
+            await ensure_active_windows(conn)
             row = await conn.fetchrow(
                 _SELECT_SQL,
                 excluded,

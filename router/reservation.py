@@ -10,82 +10,112 @@ Flow:
 """
 
 from __future__ import annotations
-
 import logging
 from uuid import UUID, uuid4
 from typing import Optional
-
+from datetime import datetime, timezone, timedelta
 import asyncpg
 
 logger = logging.getLogger(__name__)
 
-_RESERVE_TOKENS_SQL = """
-WITH quota AS (
+def _window_bounds(window: str) -> tuple[datetime, datetime]:
+    """Return (window_start, window_end) for the current period of the given window."""
+    now = datetime.now(timezone.utc)
+
+    if window == "SECOND":
+        start = now.replace(microsecond=0)
+        end = start + timedelta(seconds=1)
+    elif window == "MINUTE":
+        start = now.replace(second=0, microsecond=0)
+        end = start + timedelta(minutes=1)
+    elif window == "HOUR":
+        start = now.replace(minute=0, second=0, microsecond=0)
+        end = start + timedelta(hours=1)
+    elif window == "DAY":
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=1)
+    elif window == "MONTH":
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if now.month == 12:
+            end = start.replace(year=now.year + 1, month=1)
+        else:
+            end = start.replace(month=now.month + 1)
+    else:  # LIFETIME, CUSTOM
+        start = now
+        end = now.replace(year=now.year + 10)
+
+    return start, end
+
+async def ensure_active_windows(conn: asyncpg.Connection):
+    """Find all active quota_definitions that don't have a current quota_usage row and insert them."""
+    rows = await conn.fetch("""
+        SELECT qd.id, qd.quota_window
+        FROM quota_definitions qd
+        LEFT JOIN quota_usage qu ON qu.quota_definition_id = qd.id AND qu.window_end > NOW()
+        WHERE qd.active = true AND qu.id IS NULL
+    """)
+    if not rows:
+        return
+    
+    for row in rows:
+        qd_id = row["id"]
+        window = row["quota_window"]
+        start, end = _window_bounds(window)
+        await conn.execute("""
+            INSERT INTO quota_usage (quota_definition_id, used, reserved, window_start, window_end)
+            VALUES ($1, 0, 0, $2, $3)
+            ON CONFLICT (quota_definition_id, window_start) DO NOTHING
+        """, qd_id, start, end)
+
+_RESERVE_ALL_SQL = """
+WITH eligible_quotas AS (
     SELECT
-        qu.id           AS usage_id,
-        qu.used,
-        qu.reserved,
-        qu.window_end,
-        qd.limit_value,
-        qd.id           AS definition_id
+        qu.id AS usage_id,
+        qd.id AS definition_id,
+        CASE
+            WHEN qd.quota_type = 'TOKENS' THEN $2
+            ELSE 1
+        END AS amount
     FROM quota_definitions qd
     JOIN quota_usage qu ON qu.quota_definition_id = qd.id
     WHERE qd.model_id = $1
-      AND qd.quota_type = 'TOKENS'
       AND qd.active = true
       AND qu.window_end > NOW()
-      AND (qu.used + qu.reserved + $2) <= qd.limit_value
-    ORDER BY qd.quota_window
-    LIMIT 1
+      AND (
+          (qd.quota_type = 'TOKENS' AND (qu.used + qu.reserved + $2) <= qd.limit_value)
+          OR
+          (qd.quota_type = 'REQUESTS' AND (qu.used + qu.reserved + 1) <= qd.limit_value)
+      )
     FOR UPDATE OF qu SKIP LOCKED
+),
+expected_count AS (
+    SELECT COUNT(*) as cnt FROM quota_definitions WHERE model_id = $1 AND active = true
+),
+matched_count AS (
+    SELECT COUNT(*) as cnt FROM eligible_quotas
+),
+reservations_to_make AS (
+    SELECT eq.usage_id, eq.definition_id, eq.amount
+    FROM eligible_quotas eq
+    WHERE (SELECT cnt FROM expected_count) = (SELECT cnt FROM matched_count)
 )
 UPDATE quota_usage qu
-SET reserved = qu.reserved + $2
-FROM quota
-WHERE qu.id = quota.usage_id
-RETURNING quota.definition_id, qu.id AS usage_id
-"""
-
-_RESERVE_REQUESTS_SQL = """
-WITH quota AS (
-    SELECT
-        qu.id           AS usage_id,
-        qd.id           AS definition_id
-    FROM quota_definitions qd
-    JOIN quota_usage qu ON qu.quota_definition_id = qd.id
-    WHERE qd.model_id = $1
-      AND qd.quota_type = 'REQUESTS'
-      AND qd.active = true
-      AND qu.window_end > NOW()
-      AND (qu.used + qu.reserved + 1) <= qd.limit_value
-    ORDER BY qd.quota_window
-    LIMIT 1
-    FOR UPDATE OF qu SKIP LOCKED
-)
-UPDATE quota_usage qu
-SET reserved = qu.reserved + 1
-FROM quota
-WHERE qu.id = quota.usage_id
-RETURNING quota.definition_id, qu.id AS usage_id
-"""
-
-_INSERT_RESERVATION_SQL = """
-INSERT INTO reservations (
-    id, request_uuid, model_id, quota_definition_id, reserved_amount, state, expires_at
-) VALUES ($1, $2, $3, $4, $5, 'pending', NOW() + INTERVAL '60 seconds')
-RETURNING id
+SET reserved = qu.reserved + rtm.amount
+FROM reservations_to_make rtm
+WHERE qu.id = rtm.usage_id
+RETURNING rtm.definition_id, rtm.amount
 """
 
 _CONFIRM_SQL = """
 WITH res AS (
     UPDATE reservations
     SET state = 'completed'
-    WHERE id = $1 AND state = 'pending'
+    WHERE request_uuid = $1 AND state = 'pending'
     RETURNING model_id, quota_definition_id, reserved_amount
 )
 UPDATE quota_usage qu
 SET
-    used     = qu.used + $2,        -- actual tokens used
+    used     = qu.used + CASE WHEN qd.quota_type = 'TOKENS' THEN $2 ELSE 1 END,
     reserved = GREATEST(0, qu.reserved - res.reserved_amount)
 FROM res
 JOIN quota_definitions qd ON qd.id = res.quota_definition_id
@@ -97,7 +127,7 @@ _RELEASE_SQL = """
 WITH res AS (
     UPDATE reservations
     SET state = 'released'
-    WHERE id = $1 AND state = 'pending'
+    WHERE request_uuid = $1 AND state = 'pending'
     RETURNING quota_definition_id, reserved_amount
 )
 UPDATE quota_usage qu
@@ -121,7 +151,6 @@ WHERE qu.quota_definition_id = expired.quota_definition_id
   AND qu.window_end > NOW()
 """
 
-
 _CHECK_HAS_QUOTAS_SQL = """
 SELECT EXISTS (
     SELECT 1 FROM quota_definitions WHERE model_id = $1 AND active = true
@@ -138,73 +167,40 @@ async def reserve(
     Attempt to reserve quota for `model_id`.
 
     Strategy:
-    1. If model has TOKENS quota → try to reserve estimated_tokens
-    2. Else if model has REQUESTS quota → reserve 1 request slot
-    3. Else (LOCAL / no quota) → create a trivial reservation (always succeeds)
+    1. Lock and reserve all quota definitions for the model that have headroom
+    2. Verify all expected active quota definitions were successfully locked/reserved
+    3. If any quota was exhausted/locked, fail reservation (return None)
+    4. Otherwise, record reservations in the DB and return the request_uuid
 
-    Returns the reservation UUID on success, or None if quota is exhausted
-    (SKIP LOCKED means another worker claimed it or quota is exhausted).
+    Returns the request_uuid on success, or None if quota is exhausted.
     """
     async with pool.acquire() as conn:
         async with conn.transaction():
-            # Phase 1: Try token-based reservation
-            row = await conn.fetchrow(_RESERVE_TOKENS_SQL, model_id, estimated_tokens)
+            await ensure_active_windows(conn)
 
-            if row is None:
-                # Phase 2: Try request-based reservation
-                row = await conn.fetchrow(_RESERVE_REQUESTS_SQL, model_id)
+            rows = await conn.fetch(_RESERVE_ALL_SQL, model_id, estimated_tokens)
 
-            if row is None:
-                # Phase 3: Check if model has any quotas at all
-                has_quotas = await conn.fetchval(_CHECK_HAS_QUOTAS_SQL, model_id)
-                if has_quotas:
-                    # Quota is genuinely exhausted
-                    logger.debug(
-                        "reserve: quota exhausted for model=%s tokens=%d",
-                        model_id,
-                        estimated_tokens,
-                    )
-                    return None
-                # No quotas defined → trivial reservation (LOCAL tier, OpenRouter no-quota models)
-                definition_id = None
-                reserved_amount = 0
-            else:
-                definition_id = row["definition_id"]
-                reserved_amount = estimated_tokens if "reserved_amount" not in row else row.get("reserved_amount", estimated_tokens)
-
-            reservation_id = uuid4()
-            # For models without quota definitions, use a placeholder that still logs the request
-            if definition_id is None:
-                await conn.execute("""
-                    INSERT INTO reservations (id, request_uuid, model_id, quota_definition_id,
-                                              reserved_amount, state, expires_at)
-                    SELECT $1, $2, $3, id, 0, 'pending', NOW() + INTERVAL '60 seconds'
-                    FROM quota_definitions WHERE model_id = $3 AND active = true LIMIT 1
-                    -- If no quota_definitions at all, skip the insert (no constraint needed)
-                """, reservation_id, request_uuid, model_id)
-                # If truly no quotas, just insert without a quota_definition_id link isn't possible
-                # due to FK. Instead, skip the reservation row and return a synthetic ID.
+            has_quotas = await conn.fetchval(_CHECK_HAS_QUOTAS_SQL, model_id)
+            if has_quotas and not rows:
                 logger.debug(
-                    "reserve: no-quota model=%s, synthetic reservation=%s",
+                    "reserve: quota exhausted or locked for model=%s",
                     model_id,
-                    reservation_id,
                 )
-                return reservation_id
+                return None
 
-            await conn.execute(
-                _INSERT_RESERVATION_SQL,
-                reservation_id,
-                request_uuid,
-                model_id,
-                definition_id,
-                reserved_amount,
-            )
+            for row in rows:
+                await conn.execute("""
+                    INSERT INTO reservations (
+                        id, request_uuid, model_id, quota_definition_id, reserved_amount, state, expires_at
+                    ) VALUES ($1, $2, $3, $4, $5, 'pending', NOW() + INTERVAL '60 seconds')
+                """, uuid4(), request_uuid, model_id, row["definition_id"], row["amount"])
+
             logger.debug(
-                "reserve: reserved for model=%s reservation=%s",
+                "reserve: reserved for model=%s request_uuid=%s",
                 model_id,
-                reservation_id,
+                request_uuid,
             )
-            return reservation_id
+            return request_uuid
 
 
 async def confirm(
