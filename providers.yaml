@@ -1,0 +1,827 @@
+## providers.yaml — Declarative provider/model configuration
+## This is the single source of truth seeded into PostgreSQL via seed_db.py
+## Last updated: 2026-07-14
+
+providers:
+
+  - name: gemini
+    display_name: "Google Gemini"
+    provider_type: cloud
+    priority: 1
+    tier: PRIMARY_FREE
+    enabled: true
+    base_url: "https://generativelanguage.googleapis.com"
+    supports_streaming: true
+    supports_tools: true
+    supports_images: true
+    supports_reasoning: true
+    models:
+      - model_name: "gemini-2.5-flash"
+        display_name: "Gemini 2.5 Flash"
+        tier: PRIMARY_FREE
+        context_window: 1048576
+        max_output_tokens: 65536
+        vision: true
+        tools: true
+        reasoning: true
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [reasoning, vision, tool-calling, coding, fast, large-context]
+        lifecycle:
+          introduced_at: "2025-05-20"
+          expires_at: null
+        quotas:
+          - quota_type: REQUESTS
+            window: MINUTE
+            limit_value: 15
+          - quota_type: TOKENS
+            window: MINUTE
+            limit_value: 1000000
+          - quota_type: REQUESTS
+            window: DAY
+            limit_value: 1500
+
+      - model_name: "gemini-2.5-pro"
+        display_name: "Gemini 2.5 Pro"
+        tier: PRIMARY_FREE
+        context_window: 1048576
+        max_output_tokens: 65536
+        vision: true
+        tools: true
+        reasoning: true
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [reasoning, vision, tool-calling, coding, large-context]
+        lifecycle:
+          introduced_at: "2025-06-01"
+          expires_at: null
+        quotas:
+          - quota_type: REQUESTS
+            window: MINUTE
+            limit_value: 5
+          - quota_type: TOKENS
+            window: MINUTE
+            limit_value: 250000
+          - quota_type: REQUESTS
+            window: DAY
+            limit_value: 50
+
+  - name: groq
+    display_name: "Groq"
+    provider_type: cloud
+    priority: 2
+    tier: PRIMARY_FREE
+    enabled: true
+    base_url: "https://api.groq.com/openai/v1"
+    supports_streaming: true
+    supports_tools: true
+    supports_images: false
+    supports_reasoning: false
+    models:
+      - model_name: "llama-3.1-8b-instant"
+        display_name: "Llama 3.1 8B Instant"
+        tier: PRIMARY_FREE
+        context_window: 131072
+        max_output_tokens: 8192
+        vision: false
+        tools: true
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [fast, tool-calling, coding, small]
+        lifecycle:
+          introduced_at: "2024-07-01"
+          expires_at: null
+        quotas:
+          - quota_type: REQUESTS
+            window: MINUTE
+            limit_value: 30
+          - quota_type: TOKENS
+            window: MINUTE
+            limit_value: 6000
+          - quota_type: REQUESTS
+            window: DAY
+            limit_value: 14400
+
+      - model_name: "llama-3.3-70b-versatile"
+        display_name: "Llama 3.3 70B Versatile"
+        tier: PRIMARY_FREE
+        context_window: 131072
+        max_output_tokens: 32768
+        vision: false
+        tools: true
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [tool-calling, coding, large-context]
+        lifecycle:
+          introduced_at: "2024-12-01"
+          expires_at: null
+        quotas:
+          - quota_type: REQUESTS
+            window: MINUTE
+            limit_value: 30
+          - quota_type: TOKENS
+            window: MINUTE
+            limit_value: 12000
+          - quota_type: REQUESTS
+            window: DAY
+            limit_value: 1000
+
+      - model_name: "meta-llama/llama-4-scout-17b-16e-instruct"
+        display_name: "Llama 4 Scout 17B"
+        tier: PRIMARY_FREE
+        context_window: 131072
+        max_output_tokens: 16384
+        vision: false
+        tools: true
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [fast, tool-calling, coding]
+        lifecycle:
+          introduced_at: "2025-04-01"
+          expires_at: null
+        quotas:
+          - quota_type: REQUESTS
+            window: MINUTE
+            limit_value: 30
+          - quota_type: TOKENS
+            window: MINUTE
+            limit_value: 30000
+          - quota_type: REQUESTS
+            window: DAY
+            limit_value: 1000
+
+  - name: openrouter
+    display_name: "OpenRouter"
+    provider_type: cloud
+    priority: 3
+    tier: SECONDARY_FREE
+    enabled: true
+    base_url: "https://openrouter.ai/api/v1"
+    supports_streaming: true
+    supports_tools: true
+    supports_images: true
+    supports_reasoning: true
+    models:
+      - model_name: "tencent/hy3:free"
+        display_name: "Tencent HY3 (Free)"
+        tier: SECONDARY_FREE
+        context_window: 262144
+        max_output_tokens: 8192
+        vision: false
+        tools: false
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: false
+        chat: true
+        tags: [large-context]
+        lifecycle:
+          introduced_at: "2026-07-01"
+          expires_at: "2026-07-21"
+        quotas:
+          - quota_type: TOKENS
+            window: LIFETIME
+            limit_value: 7780000000000
+
+      - model_name: "nvidia/nemotron-3-ultra-550b-a55b:free"
+        display_name: "NVIDIA Nemotron Ultra 550B (Free)"
+        tier: SECONDARY_FREE
+        context_window: 1000000
+        max_output_tokens: 16384
+        vision: false
+        tools: false
+        reasoning: true
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [reasoning, coding, large-context]
+        lifecycle:
+          introduced_at: "2026-06-01"
+          expires_at: null
+        quotas:
+          - quota_type: TOKENS
+            window: LIFETIME
+            limit_value: 2470000000000
+
+      - model_name: "poolside/laguna-m.1:free"
+        display_name: "Poolside Laguna M.1 (Free)"
+        tier: SECONDARY_FREE
+        context_window: 262144
+        max_output_tokens: 8192
+        vision: false
+        tools: false
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [coding, large-context]
+        lifecycle:
+          introduced_at: "2026-06-01"
+          expires_at: null
+        quotas:
+          - quota_type: TOKENS
+            window: LIFETIME
+            limit_value: 5630000000
+
+      - model_name: "nvidia/nemotron-3-super-120b-a12b:free"
+        display_name: "NVIDIA Nemotron Super 120B (Free)"
+        tier: SECONDARY_FREE
+        context_window: 131072
+        max_output_tokens: 8192
+        vision: false
+        tools: false
+        reasoning: true
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [reasoning, coding]
+        lifecycle:
+          introduced_at: "2026-05-01"
+          expires_at: null
+        quotas: []
+
+      - model_name: "cohere/north-mini-code:free"
+        display_name: "Cohere North Mini Code (Free)"
+        tier: SECONDARY_FREE
+        context_window: 262144
+        max_output_tokens: 8192
+        vision: false
+        tools: false
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: false
+        tags: [coding, large-context, small]
+        lifecycle:
+          introduced_at: "2026-06-01"
+          expires_at: null
+        quotas: []
+
+      - model_name: "poolside/laguna-xs-2.1:free"
+        display_name: "Poolside Laguna XS 2.1 (Free)"
+        tier: SECONDARY_FREE
+        context_window: 262144
+        max_output_tokens: 4096
+        vision: false
+        tools: false
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [coding, fast, small]
+        lifecycle:
+          introduced_at: "2026-06-01"
+          expires_at: null
+        quotas: []
+
+      - model_name: "nvidia/nemotron-3-nano-30b-a3b:free"
+        display_name: "NVIDIA Nemotron Nano 30B (Free)"
+        tier: SECONDARY_FREE
+        context_window: 131072
+        max_output_tokens: 4096
+        vision: false
+        tools: false
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: false
+        chat: true
+        tags: [fast, small]
+        lifecycle:
+          introduced_at: "2026-05-01"
+          expires_at: null
+        quotas: []
+
+      - model_name: "google/gemma-4-31b-it:free"
+        display_name: "Google Gemma 4 31B (Free)"
+        tier: SECONDARY_FREE
+        context_window: 131072
+        max_output_tokens: 8192
+        vision: false
+        tools: false
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [coding]
+        lifecycle:
+          introduced_at: "2025-09-01"
+          expires_at: null
+        quotas: []
+
+      - model_name: "openai/gpt-oss-20b:free"
+        display_name: "OpenAI GPT-OSS 20B (Free)"
+        tier: SECONDARY_FREE
+        context_window: 131072
+        max_output_tokens: 8192
+        vision: false
+        tools: false
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [coding, fast]
+        lifecycle:
+          introduced_at: "2026-06-01"
+          expires_at: null
+        quotas: []
+
+      - model_name: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+        display_name: "NVIDIA Nemotron Nano Omni 30B Reasoning (Free)"
+        tier: SECONDARY_FREE
+        context_window: 131072
+        max_output_tokens: 4096
+        vision: false
+        tools: false
+        reasoning: true
+        embedding: false
+        speech: false
+        moderation: false
+        coding: false
+        chat: true
+        tags: [reasoning, fast, small]
+        lifecycle:
+          introduced_at: "2026-05-01"
+          expires_at: null
+        quotas: []
+
+      - model_name: "nvidia/nemotron-nano-9b-v2:free"
+        display_name: "NVIDIA Nemotron Nano 9B v2 (Free)"
+        tier: SECONDARY_FREE
+        context_window: 131072
+        max_output_tokens: 4096
+        vision: false
+        tools: false
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: false
+        chat: true
+        tags: [fast, small]
+        lifecycle:
+          introduced_at: "2026-05-01"
+          expires_at: null
+        quotas: []
+
+  - name: mistral
+    display_name: "Mistral AI"
+    provider_type: cloud
+    priority: 4
+    tier: SECONDARY_FREE
+    enabled: true
+    base_url: "https://api.mistral.ai/v1"
+    supports_streaming: true
+    supports_tools: true
+    supports_images: false
+    supports_reasoning: false
+    models:
+      - model_name: "mistral-small-2506"
+        display_name: "Mistral Small 2506"
+        tier: SECONDARY_FREE
+        context_window: 131072
+        max_output_tokens: 16384
+        vision: false
+        tools: true
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [tool-calling, coding, fast]
+        lifecycle:
+          introduced_at: "2025-06-01"
+          expires_at: null
+        quotas:
+          - quota_type: TOKENS
+            window: MINUTE
+            limit_value: 2250000
+          - quota_type: REQUESTS
+            window: SECOND
+            limit_value: 5
+
+      - model_name: "ministral-3b-2512"
+        display_name: "Ministral 3B"
+        tier: SECONDARY_FREE
+        context_window: 131072
+        max_output_tokens: 8192
+        vision: false
+        tools: true
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [fast, small, tool-calling]
+        lifecycle:
+          introduced_at: "2025-12-01"
+          expires_at: null
+        quotas:
+          - quota_type: TOKENS
+            window: MINUTE
+            limit_value: 1300000
+          - quota_type: REQUESTS
+            window: SECOND
+            limit_value: 12
+
+      - model_name: "ministral-8b-2512"
+        display_name: "Ministral 8B"
+        tier: SECONDARY_FREE
+        context_window: 131072
+        max_output_tokens: 8192
+        vision: false
+        tools: true
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [fast, tool-calling, coding]
+        lifecycle:
+          introduced_at: "2025-12-01"
+          expires_at: null
+        quotas:
+          - quota_type: TOKENS
+            window: MINUTE
+            limit_value: 625000
+          - quota_type: REQUESTS
+            window: SECOND
+            limit_value: 3
+
+      - model_name: "mistral-medium-2505"
+        display_name: "Mistral Medium 2505"
+        tier: SECONDARY_FREE
+        context_window: 131072
+        max_output_tokens: 16384
+        vision: false
+        tools: true
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [tool-calling, coding]
+        lifecycle:
+          introduced_at: "2025-05-01"
+          expires_at: null
+        quotas:
+          - quota_type: TOKENS
+            window: MINUTE
+            limit_value: 375000
+          - quota_type: REQUESTS
+            window: SECOND
+            limit_value: 1
+
+      - model_name: "codestral-2508"
+        display_name: "Codestral 2508"
+        tier: SECONDARY_FREE
+        context_window: 131072
+        max_output_tokens: 16384
+        vision: false
+        tools: true
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: false
+        tags: [coding, tool-calling]
+        lifecycle:
+          introduced_at: "2025-08-01"
+          expires_at: null
+        quotas:
+          - quota_type: TOKENS
+            window: MINUTE
+            limit_value: 625000
+          - quota_type: REQUESTS
+            window: SECOND
+            limit_value: 2
+
+      - model_name: "mistral-large-2512"
+        display_name: "Mistral Large 2512"
+        tier: SECONDARY_FREE
+        context_window: 131072
+        max_output_tokens: 16384
+        vision: false
+        tools: true
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [tool-calling, coding, large-context]
+        lifecycle:
+          introduced_at: "2025-12-01"
+          expires_at: null
+        quotas:
+          - quota_type: TOKENS
+            window: MINUTE
+            limit_value: 250000
+          - quota_type: REQUESTS
+            window: SECOND
+            limit_value: 1
+
+  - name: cerebras
+    display_name: "Cerebras"
+    provider_type: cloud
+    priority: 5
+    tier: LIMITED_FREE
+    enabled: true
+    base_url: "https://api.cerebras.ai/v1"
+    supports_streaming: true
+    supports_tools: false
+    supports_images: false
+    supports_reasoning: false
+    models:
+      - model_name: "gpt-oss-120b"
+        display_name: "GPT-OSS 120B"
+        tier: LIMITED_FREE
+        context_window: 65536
+        max_output_tokens: 16384
+        vision: false
+        tools: false
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [coding, fast]
+        lifecycle:
+          introduced_at: "2026-01-01"
+          expires_at: null
+        quotas:
+          - quota_type: REQUESTS
+            window: MINUTE
+            limit_value: 5
+          - quota_type: REQUESTS
+            window: HOUR
+            limit_value: 150
+          - quota_type: REQUESTS
+            window: DAY
+            limit_value: 2400
+          - quota_type: TOKENS
+            window: MINUTE
+            limit_value: 30000
+          - quota_type: TOKENS
+            window: HOUR
+            limit_value: 1000000
+          - quota_type: TOKENS
+            window: DAY
+            limit_value: 1000000
+
+      - model_name: "gemma-4-31b"
+        display_name: "Gemma 4 31B (Cerebras)"
+        tier: LIMITED_FREE
+        context_window: 65536
+        max_output_tokens: 16384
+        vision: false
+        tools: false
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: false
+        chat: true
+        tags: [fast]
+        lifecycle:
+          introduced_at: "2026-04-01"
+          expires_at: null
+        quotas:
+          - quota_type: REQUESTS
+            window: MINUTE
+            limit_value: 5
+          - quota_type: REQUESTS
+            window: HOUR
+            limit_value: 150
+          - quota_type: REQUESTS
+            window: DAY
+            limit_value: 2400
+          - quota_type: TOKENS
+            window: MINUTE
+            limit_value: 30000
+          - quota_type: TOKENS
+            window: HOUR
+            limit_value: 1000000
+          - quota_type: TOKENS
+            window: DAY
+            limit_value: 1000000
+
+      - model_name: "zai-glm-4.7"
+        display_name: "ZAI GLM 4.7 (Cerebras)"
+        tier: LIMITED_FREE
+        context_window: 8192
+        max_output_tokens: 4096
+        vision: false
+        tools: false
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: false
+        chat: true
+        tags: [small, fast]
+        lifecycle:
+          introduced_at: "2026-04-01"
+          expires_at: null
+        quotas:
+          - quota_type: REQUESTS
+            window: MINUTE
+            limit_value: 5
+          - quota_type: REQUESTS
+            window: HOUR
+            limit_value: 150
+          - quota_type: REQUESTS
+            window: DAY
+            limit_value: 2400
+          - quota_type: TOKENS
+            window: MINUTE
+            limit_value: 30000
+          - quota_type: TOKENS
+            window: HOUR
+            limit_value: 1000000
+          - quota_type: TOKENS
+            window: DAY
+            limit_value: 1000000
+
+  - name: openai
+    display_name: "OpenAI"
+    provider_type: paid
+    priority: 6
+    tier: PAID
+    enabled: true
+    base_url: "https://api.openai.com/v1"
+    supports_streaming: true
+    supports_tools: true
+    supports_images: true
+    supports_reasoning: true
+    models:
+      - model_name: "gpt-4o-mini"
+        display_name: "GPT-4o Mini"
+        tier: PAID
+        context_window: 128000
+        max_output_tokens: 16384
+        vision: true
+        tools: true
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [fast, tool-calling, coding, vision, small]
+        lifecycle:
+          introduced_at: "2024-07-18"
+          expires_at: null
+        quotas: []  # dynamic, based on account tier
+
+      - model_name: "gpt-4o"
+        display_name: "GPT-4o"
+        tier: PAID
+        context_window: 128000
+        max_output_tokens: 16384
+        vision: true
+        tools: true
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [tool-calling, coding, vision, large-context]
+        lifecycle:
+          introduced_at: "2024-05-13"
+          expires_at: null
+        quotas: []
+
+  - name: cohere
+    display_name: "Cohere"
+    provider_type: cloud
+    priority: 7
+    tier: SECONDARY_FREE
+    enabled: true
+    base_url: "https://api.cohere.com/v2"
+    supports_streaming: true
+    supports_tools: true
+    supports_images: false
+    supports_reasoning: false
+    models:
+      - model_name: "command-r-plus-08-2024"
+        display_name: "Command R+ (Aug 2024)"
+        tier: SECONDARY_FREE
+        context_window: 128000
+        max_output_tokens: 4096
+        vision: false
+        tools: true
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [tool-calling, coding, large-context]
+        lifecycle:
+          introduced_at: "2024-08-01"
+          expires_at: null
+        quotas:
+          - quota_type: REQUESTS
+            window: MINUTE
+            limit_value: 20
+          - quota_type: REQUESTS
+            window: MONTH
+            limit_value: 1000
+
+      - model_name: "command-r-08-2024"
+        display_name: "Command R (Aug 2024)"
+        tier: SECONDARY_FREE
+        context_window: 128000
+        max_output_tokens: 4096
+        vision: false
+        tools: true
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [tool-calling, coding, fast]
+        lifecycle:
+          introduced_at: "2024-08-01"
+          expires_at: null
+        quotas:
+          - quota_type: REQUESTS
+            window: MINUTE
+            limit_value: 20
+          - quota_type: REQUESTS
+            window: MONTH
+            limit_value: 1000
+
+  - name: local
+    display_name: "Local llama.cpp"
+    provider_type: local
+    priority: 8
+    tier: LOCAL
+    enabled: true
+    base_url: "http://127.0.0.1:8080/v1"
+    supports_streaming: true
+    supports_tools: false
+    supports_images: false
+    supports_reasoning: false
+    models:
+      - model_name: "local-llama"
+        display_name: "Local LLaMA (llama.cpp)"
+        tier: LOCAL
+        context_window: 32768
+        max_output_tokens: 4096
+        vision: false
+        tools: false
+        reasoning: false
+        embedding: false
+        speech: false
+        moderation: false
+        coding: true
+        chat: true
+        tags: [local, coding]
+        lifecycle:
+          introduced_at: "2024-01-01"
+          expires_at: null
+        quotas: []  # local: no rate limits

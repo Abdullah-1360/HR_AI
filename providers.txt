@@ -1,0 +1,180 @@
+now create a proper db structure for accessing these models based on their tiers and tokens, limits and db must be accurate and fully up to date date aware, meaning fully aware of everything , later we wil design the router but for now just design the db 
+
+OPENROUTER:
+tencent/hy3:free expires 21 july , has 7.78T tokens(262k context)
+nvidia/nemotron-3-ultra-550b-a55b:free  2.47T tokens(1M context)
+poolside/laguna-m.1:free 5.63B tokens(262k context)
+nvidia/nemotron-3-super-120b-a12b:free 
+cohere/north-mini-code:free
+poolside/laguna-xs-2.1:free
+nvidia/nemotron-3-nano-30b-a3b:free
+google/gemma-4-31b-it:free
+openai/gpt-oss-20b:free
+nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+nvidia/nemotron-nano-9b-v2:free
+
+
+MISTRAL:
+mistral-embed-2312
+Tokens per Minute
+20,000,000
+Requests per Second
+1.00
+labs-leanstral-1-5-1
+Tokens per Minute
+5,000,000
+Requests per Second
+0.63
+mistral-small-2506
+Tokens per Minute
+2,250,000
+Requests per Second
+5.00
+ministral-3b-2512
+Tokens per Minute
+1,300,000
+Requests per Second
+12.50
+devstral-2512
+Tokens per Minute
+1,000,000
+Requests per Second
+0.83
+ministral-14b-2512
+Tokens per Minute
+937,500
+Requests per Second
+0.50
+codestral-2508
+Tokens per Minute
+625,000
+Requests per Second
+2.08
+ministral-8b-2512
+Tokens per Minute
+625,000
+Requests per Second
+3.13
+open-mistral-nemo
+Tokens per Minute
+500,000
+Requests per Second
+0.50
+mistral-medium-2505
+Tokens per Minute
+375,000
+Requests per Second
+0.42
+mistral-medium-2508
+Tokens per Minute
+356,250
+Requests per Second
+0.38
+mistral-large-2512
+Tokens per Minute
+250,000
+Requests per Second
+0.07
+magistral-medium-2509
+Tokens per Minute
+75,000
+Requests per Second
+0.08
+voxtral-small-2507
+Tokens per Minute
+50,000
+Requests per Second
+1.00
+voxtral-mini-2602
+Tokens per Minute
+50,000
+Requests per Second
+1.00
+codestral-embed
+Tokens per Minute
+50,000
+Requests per Second
+1.00
+mistral-moderation-2603
+Tokens per Minute
+50,000
+Requests per Second
+1.67
+voxtral-mini-transcribe-realtime-2602
+Tokens per Minute
+50,000
+Requests per Second
+1.00
+voxtral-mini-tts-2603
+Tokens per Minute
+50,000
+Requests per Second
+1.00
+mistral-small-2603
+Tokens per Minute
+50,000
+Requests per Second
+0.83
+mistral-medium-latest
+Tokens per Minute
+25,000
+Requests per Second
+
+
+CEREBRAS:
+Model	Max Context Length	Type	Quota
+gemma-4-31b
+Preview
+65,536	Requests	
+minute:
+5
+hour:
+150
+day:
+2,400
+Tokens	
+min:
+30,000
+hour:
+1,000,000
+day:
+1,000,000
+gpt-oss-120b
+Production
+65,536	Requests	
+minute:
+5
+hour:
+150
+day:
+2,400
+Tokens	
+min:
+30,000
+hour:
+1,000,000
+day:
+1,000,000
+zai-glm-4.7
+Preview
+8,192	Requests	
+minute:
+5
+hour:
+150
+day:
+2,400
+Tokens	
+min:
+30,000
+hour:
+1,000,000
+day:
+1,000,000
+
+
+
+these are the api limits of mentioned providers 
+i have also api key(gemini,groq,local llama.cpp and openai paid ) read the .env for actual data
+
+design a proper db structure on the basis of tiers and properly guide me how to implement a proper routing middleware
