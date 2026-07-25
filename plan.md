@@ -1,719 +1,857 @@
-I would not design this as a simple "providers/models" database. You're essentially building a **distributed LLM scheduler**, so the database should model four separate concerns:
+If you're targeting an **industry-grade AI Hiring Platform** built on **LangGraph + LangChain**, don't think of it as "a chatbot that reads resumes."
 
-1. **Provider configuration** (static)
-2. **Model capabilities** (static)
-3. **Quota windows** (dynamic)
-4. **Routing/health state** (dynamic)
+Think of it as an **AI Operating System for Recruitment**.
 
-Keeping these concerns separate makes the router much easier to evolve as providers change quotas or add models.
+Companies like Ashby, Greenhouse AI, Eightfold AI, HireVue, Paradox Olivia, and LinkedIn Recruiter AI are moving toward **multi-agent architectures**, not single LLM applications.
 
 ---
 
-# Overall Architecture
+# High Level Architecture
 
 ```
-Provider
-    │
-    ├── API Keys
-    │
-    ├── Models
-    │       │
-    │       ├── Capabilities
-    │       ├── Quotas
-    │       └── Health
-    │
-    └── Requests
-            │
-            └── Token Usage
-```
+                    ┌──────────────────────────────┐
+                    │         Frontend             │
+                    │ React / Next.js             │
+                    └─────────────┬────────────────┘
+                                  │
+                          REST / GraphQL
+                                  │
+                    ┌─────────────▼───────────────┐
+                    │      FastAPI Backend        │
+                    │ Authentication             │
+                    │ API Gateway                │
+                    │ Business Logic             │
+                    └─────────────┬──────────────┘
+                                  │
+              ┌───────────────────┼────────────────────┐
+              │                   │                    │
+              │                   │                    │
+      PostgreSQL             Redis Queue         Object Storage
+      Users/Jobs             Async Tasks         Resume Files
+      Candidates             Caching             PDFs
+      Interviews             Sessions
 
-Notice that **quotas belong to models, not providers**, because OpenRouter and Mistral expose different limits per model.
-
----
-
-# 1. providers
-
-Only provider-level information.
-
-```sql
-providers
----------
-id                  UUID
-name                TEXT UNIQUE
-display_name        TEXT
-
-provider_type       ENUM
-(
-    cloud,
-    local,
-    paid
-)
-
-priority            INTEGER
-
-enabled             BOOLEAN
-
-base_url            TEXT
-
-supports_streaming  BOOLEAN
-supports_tools      BOOLEAN
-supports_images     BOOLEAN
-supports_reasoning  BOOLEAN
-
-created_at
-updated_at
-```
-
-Examples
-
-```
-Gemini
-Groq
-OpenRouter
-Mistral
-Cerebras
-OpenAI
-Local
+                                  │
+                     LangGraph Orchestrator
+                                  │
+     ┌────────────────────────────────────────────────────────┐
+     │                                                        │
+     │             Multi-Agent AI Workflow                    │
+     │                                                        │
+     └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-# 2. provider_credentials
-
-Never mix API keys with provider metadata.
-
-```sql
-provider_credentials
-
-id
-
-provider_id
-
-key_name
-
-encrypted_key
-
-active
-
-created_at
-```
-
-Allows key rotation later.
-
----
-
-# 3. models
+# AI Layer
 
 This is the heart.
 
+Instead of one LLM...
+
+You'll have **specialized agents.**
+
 ```
-models
+                      LangGraph Supervisor
 
-id
+                               │
+      ─────────────────────────┼────────────────────────
 
-provider_id
+       Resume Agent
+       Job Understanding Agent
+       Candidate Matching Agent
+       Interview Agent
+       HR Policy Agent
+       Recruiter Copilot
+       Email Agent
+       Offer Letter Agent
+       Analytics Agent
 
-model_name
-
-display_name
-
-tier
-
-status
-
-context_window
-
-max_output_tokens
-
-vision
-
-tools
-
-reasoning
-
-embedding
-
-speech
-
-moderation
-
-coding
-
-chat
-
-created_at
-updated_at
 ```
+
+Each agent has:
+
+* Prompt
+* Tools
+* Memory
+* Vector Search
+* State
+
+---
+
+# Overall Workflow
+
+Imagine a recruiter logs in.
+
+### Step 1
+
+Create Job
+
+↓
+
+HR writes
+
+"We need a Senior Python AI Engineer."
+
+↓
+
+Job Understanding Agent
+
+extracts
+
+```
+Skills
+
+Experience
+
+Education
+
+Responsibilities
+
+Preferred Skills
+
+Salary
+
+Location
+
+Seniority
+
+```
+
+Stores everything.
+
+---
+
+### Step 2
+
+Recruiter uploads 500 resumes.
+
+↓
+
+Resume Parsing Pipeline
+
+```
+PDF
+
+↓
+
+OCR (if needed)
+
+↓
+
+Resume Parser
+
+↓
+
+Extract
+
+Name
+
+Experience
+
+Skills
+
+Projects
+
+Education
+
+Companies
+
+GitHub
+
+LinkedIn
+
+Publications
+
+```
+
+↓
+
+Embedding
+
+↓
+
+Vector DB
+
+↓
+
+Metadata DB
+
+---
+
+### Step 3
+
+Candidate Matching Agent
+
+Input
+
+```
+Job Description
+
+Candidate Profile
+```
+
+Output
+
+```
+Match Score
+
+Skill Gap
+
+Experience Score
+
+Education Score
+
+Culture Fit
+
+Reasoning
+
+Confidence
+
+```
+
+---
+
+### Step 4
+
+Ranking Engine
+
+Instead of
+
+```
+Resume A
+Resume B
+Resume C
+```
+
+AI returns
+
+```
+1.
+
+Overall Score
+
+95
+
+Python
+
+10/10
+
+LLMs
+
+9/10
+
+Leadership
+
+8/10
+
+Missing
+
+AWS
+
+Reason
+
+Excellent backend experience.
+
+--------------------------------
+
+2.
+
+Overall
+
+91
+
+...
+
+```
+
+---
+
+### Step 5
+
+Recruiter clicks candidate.
+
+AI generates
+
+```
+Summary
+
+Strengths
+
+Weaknesses
+
+Projects
+
+Potential Risks
+
+Recommended Questions
+
+```
+
+---
+
+### Step 6
+
+Interview Agent
+
+Generates
+
+```
+Coding Questions
+
+Behavior Questions
+
+Scenario Questions
+
+System Design
+
+Follow-up Questions
+
+Evaluation Rubric
+
+```
+
+---
+
+### Step 7
+
+Interview
+
+Interviewer enters notes
+
+↓
+
+AI summarizes
+
+↓
+
+Scores
+
+↓
+
+Recommendation
+
+```
+Hire
+
+No Hire
+
+Strong Hire
+
+Borderline
+
+```
+
+---
+
+### Step 8
+
+Offer Agent
+
+Creates
+
+Offer Letter
+
+↓
+
+Salary
+
+↓
+
+Benefits
+
+↓
+
+Email
+
+↓
+
+Calendar Invite
+
+---
+
+# LangGraph Architecture
+
+```
+START
+
+↓
+
+Job Creation
+
+↓
+
+Job Analyzer
+
+↓
+
+Resume Parser
+
+↓
+
+Candidate Embedding
+
+↓
+
+Retriever
+
+↓
+
+Candidate Matching
+
+↓
+
+Ranking
+
+↓
+
+Interview Generator
+
+↓
+
+Interview Evaluation
+
+↓
+
+Offer Generation
+
+↓
+
+END
+```
+
+Every node is a LangGraph node.
+
+---
+
+# State Object
+
+LangGraph revolves around state.
 
 Example
 
+```python
+class HiringState(TypedDict):
+
+    job
+
+    parsed_job
+
+    resumes
+
+    parsed_candidates
+
+    shortlisted_candidates
+
+    interview_questions
+
+    interview_feedback
+
+    final_decision
+
+    offer_letter
 ```
-gemini-2.5-flash
 
-tier = FREE
+Each node updates only its portion of the state.
 
-context = 1,048,576
+---
 
-vision = true
+# Recommended Tech Stack
 
-tools = true
+## Frontend
 
-reasoning = true
+* Next.js
+* React
+* TypeScript
+* Tailwind CSS
+* ShadCN UI
+* TanStack Query
+* React Hook Form
+* Zustand
+
+---
+
+## Backend
+
+* FastAPI
+* LangGraph
+* LangChain
+* Pydantic
+* SQLAlchemy
+* Alembic
+* Celery
+* Redis
+
+---
+
+## Database
+
+PostgreSQL
+
+Stores
+
+```
+Users
+
+Companies
+
+Jobs
+
+Candidates
+
+Interviews
+
+Hiring Stages
+
+Emails
+
+Audit Logs
+
 ```
 
 ---
 
-# 4. model_tags
+## Vector Database
 
-Instead of dozens of booleans.
+Production choices
+
+* Pinecone
+* Qdrant
+* Weaviate
+* pgvector (excellent if already using PostgreSQL)
+
+Store
 
 ```
-model_tags
+Resume Embeddings
 
-id
+Job Embeddings
 
-model_id
+Interview Knowledge
 
-tag
+Company Policies
+
 ```
+
+---
+
+## Object Storage
+
+
+
+MinIO
+
+Store
+
+```
+Resume PDFs
+
+Certificates
+
+Images
+
+Offer Letters
+
+```
+
+---
+
+## LLM Providers
+
+Keep the platform model-agnostic.
+
+Support:
+
+* all models from over previous graph of router node
+
+Use an abstraction layer so switching providers doesn't require changes to business logic.
+
+---
+
+# AI Tools
+
+Each agent gets tools.
 
 Example
 
-```
-reasoning
-
-vision
-
-tool-calling
-
-coding
-
-embedding
-
-small
-
-fast
-
-cheap
-
-large-context
-```
-
-Router becomes easier.
+Resume Agent
 
 ```
-Need coding?
+Resume Parser
 
-SELECT *
+OCR
 
-WHERE tag='coding'
-```
+Skill Extractor
 
----
+Embedding Generator
 
-# 5. quota_definitions
+Vector Search
 
-Most important table.
-
-```
-quota_definitions
-
-id
-
-model_id
-
-quota_type
-
-limit_value
-
-window
-
-timezone
-
-resets_at
-
-active
-```
-
-quota_type
-
-```
-REQUESTS
-
-TOKENS
+LinkedIn Lookup
 
 ```
 
-window
+Interview Agent
 
 ```
-SECOND
+Question Generator
 
-MINUTE
+Difficulty Selector
 
-HOUR
+Coding Problems
 
-DAY
-
-MONTH
-
-CUSTOM
-```
-
-Example
+Rubric Generator
 
 ```
-model
 
-mistral-small
-
-quota
-
-TOKENS
-
-window
-
-MINUTE
-
-2250000
-```
-
-Another row
+Email Agent
 
 ```
-REQUESTS
+SMTP
 
-SECOND
+Calendar API
 
-5
-```
+Offer Letter Generator
 
-OpenRouter temporary model
-
-```
-Requests
-
-DAY
-
-1000
-
-expires
-
-2026-07-21
-```
-
-Notice expiry belongs here.
-
----
-
-# 6. quota_usage
-
-Current usage only.
-
-```
-quota_usage
-
-id
-
-quota_definition_id
-
-used
-
-reserved
-
-window_start
-
-window_end
-
-last_reset
-```
-
-Example
-
-```
-RPM
-
-used
-
-12
-
-reserved
-
-1
-
-window
-
-12:31
 ```
 
 ---
 
-# 7. model_health
+# Memory
 
-Never calculate health every request.
+Instead of one memory...
 
-```
-model_health
+Use three levels.
 
-model_id
+## Short-term
 
-healthy
-
-average_latency
-
-average_ttft
-
-error_rate
-
-last_success
-
-last_failure
-
-consecutive_failures
-
-disabled_until
-```
-
-Router simply reads it.
-
----
-
-# 8. routing_scores
-
-Instead of recalculating scores constantly.
+Conversation Memory
 
 ```
-routing_scores
-
-model_id
-
-quality_score
-
-speed_score
-
-availability_score
-
-cost_score
-
-overall_score
-
-updated_at
-```
-
-Scores 0-100.
-
----
-
-# 9. request_log
-
-Every request.
-
-```
-request_log
-
-id
-
-request_uuid
-
-provider_id
-
-model_id
-
-status
-
-prompt_tokens
-
-completion_tokens
-
-total_tokens
-
-latency_ms
-
-http_status
-
-created_at
+Current hiring session
 ```
 
 ---
 
-# 10. reservations
+## Long-term
 
-Critical for concurrency.
-
-```
-reservations
-
-id
-
-request_uuid
-
-model_id
-
-quota_definition_id
-
-reserved_amount
-
-expires_at
-
-state
-
-pending
-
-completed
-
-released
-```
-
-Without this you'll have race conditions.
-
----
-
-# 11. provider_events
-
-Track outages.
+Recruiter Preferences
 
 ```
-provider_events
+Preferred skills
 
-provider_id
+Favorite interview templates
 
-type
-
-rate_limit
-
-timeout
-
-server_error
-
-auth
-
-message
-
-created_at
-```
-
-Useful later.
-
----
-
-# 12. model_availability
-
-Some OpenRouter models disappear.
-
-```
-model_availability
-
-model_id
-
-available
-
-expires_at
-
-last_checked
-
-notes
-```
-
-For example
-
-```
-Tencent HY3
-
-expires
-
-2026-07-21
-```
-
-After that
-
-```
-available=false
-```
-
-Router ignores it.
-
----
-
-# Routing tiers
-
-I wouldn't use FREE vs PAID.
-
-I'd use routing tiers.
-
-```
-tier
-
-PRIMARY_FREE
-
-SECONDARY_FREE
-
-LIMITED_FREE
-
-PAID
-
-LOCAL
-```
-
-Example
-
-```
-Gemini
-
-PRIMARY_FREE
-
-Groq
-
-PRIMARY_FREE
-
-OpenRouter
-
-SECONDARY_FREE
-
-Mistral
-
-SECONDARY_FREE
-
-Cerebras
-
-LIMITED_FREE
-
-OpenAI
-
-PAID
-
-Local
-
-LOCAL
-```
-
-Router can simply
-
-```
-PRIMARY
-
-↓
-
-SECONDARY
-
-↓
-
-LIMITED
-
-↓
-
-PAID
-
-↓
-
-LOCAL
+Company style
 ```
 
 ---
 
-# How middleware works
+## Semantic Memory
+
+Vector DB
 
 ```
-Incoming Request
+Old candidates
 
-↓
+Past interviews
 
-Estimate Prompt Tokens
+Policies
 
-↓
-
-Find Required Features
-    vision?
-    tools?
-    reasoning?
-    coding?
-
-↓
-
-Find Eligible Models
-
-↓
-
-Filter
-    enabled
-    available
-    not expired
-    healthy
-    quota remaining
-
-↓
-
-Reserve quota
-
-↓
-
-Call Provider
-
-↓
-
-Success
-    Update usage
-    Update latency
-    Update health
-
-↓
-
-Failure
-    Release reservation
-    Increase failure count
-    Retry next model
+Historical hiring data
 ```
 
 ---
 
-# The selector query
+# RAG
 
-The scheduler should never iterate through providers in code. Instead, ask the database for the best candidate.
-
-Conceptually, the query is:
+Use Retrieval-Augmented Generation over:
 
 ```
-SELECT model
-FROM models
-JOIN model_health
-JOIN routing_scores
-JOIN quota_usage
-JOIN quota_definitions
-JOIN model_availability
-WHERE
-    enabled = true
-    AND healthy = true
-    AND available = true
-    AND expires_at > NOW()
-    AND quota_remaining >= estimated_tokens
-    AND supports_requested_features = true
-ORDER BY
-    tier ASC,
-    overall_score DESC,
-    availability_score DESC,
-    latency ASC
-LIMIT 1;
+Company HR Policies
+
+Employee Handbook
+
+Job Descriptions
+
+Previous Interviews
+
+Candidate Database
+
+Compliance Documents
 ```
 
-The middleware then reserves quota, makes the API call, updates usage and health, and repeats the selection only if the request fails.
+This enables grounded answers rather than relying only on the model's internal knowledge.
 
 ---
 
-## One additional table I'd add
+# Authentication
 
-Given your goal of being "fully date aware," I'd add a `model_lifecycle` table separate from quotas:
+* JWT
+* OAuth
+* Google Login
+* Microsoft Login
+* Role-Based Access Control (RBAC)
+
+Roles
 
 ```
-model_lifecycle
----------------
-model_id
-introduced_at
-deprecated_at
-expires_at
-last_verified_at
-verification_source
-replacement_model_id
+Admin
+
+HR
+
+Recruiter
+
+Hiring Manager
+
+Interviewer
+
+Candidate
 ```
 
-This lets your router gracefully handle temporary models (such as OpenRouter's `:free` offerings that expire on a specific date) without deleting records. The scheduler can automatically stop considering models whose `expires_at` has passed, while preserving historical request logs and usage statistics.
+---
 
-With this schema, adding a new provider—or accommodating changes in quotas, context windows, or model availability—becomes a data update rather than a code change. Your routing logic remains generic and operates entirely on the database's view of provider capabilities, quotas, health, and lifecycle.
+# Event Architecture
+
+Every action emits an event.
+
+```
+Resume Uploaded
+
+↓
+
+Resume Parsed
+
+↓
+
+Embedding Created
+
+↓
+
+Candidate Ranked
+
+↓
+
+Interview Scheduled
+
+↓
+
+Interview Completed
+
+↓
+
+Offer Sent
+
+```
+
+This improves observability and supports integrations.
+
+---
+
+# Monitoring
+
+Production AI systems need observability.
+
+Track:
+
+* Prompt versions
+* Token usage
+* Cost per request
+* Latency
+* Agent execution paths
+* Error rates
+* Hallucination or validation failures
+* Human overrides
+
+Use tools like LangSmith for tracing LangGraph executions, along with OpenTelemetry and Prometheus/Grafana for system metrics.
+
+---
+
+# Suggested Folder Structure
+
+```text
+backend/
+│
+├── app/
+│   ├── api/
+│   ├── auth/
+│   ├── core/
+│   ├── db/
+│   ├── models/
+│   ├── services/
+│   ├── repositories/
+│   ├── ai/
+│   │   ├── graphs/
+│   │   ├── agents/
+│   │   ├── prompts/
+│   │   ├── tools/
+│   │   ├── memory/
+│   │   ├── retrievers/
+│   │   ├── evaluators/
+│   │   └── schemas/
+│   ├── tasks/
+│   └── utils/
+│
+├── tests/
+├── alembic/
+└── docker/
+```
+
+---
+
+# Industry-Grade Features (MVP → Enterprise)
+
+A mature platform should include:
+
+* AI-powered job description generation and optimization
+* Resume parsing with OCR fallback
+* Semantic candidate search and ranking
+* Multi-factor scoring (skills, experience, certifications, location, salary, work authorization)
+* Explainable AI with reasons behind every score
+* Interview question generation by role and seniority
+* AI interview feedback summarization
+* Recruiter copilot for natural-language queries ("Show me backend candidates with Kubernetes and LLM experience")
+* Candidate pipeline management
+* Email and calendar automation
+* Audit logs and approval workflows
+* Bias detection and fairness reporting
+* Human-in-the-loop review before high-impact decisions
+* Multi-tenant architecture (multiple companies on one platform)
+* API integrations with ATS/HRIS systems
+* Comprehensive analytics dashboards
+* Prompt versioning and A/B testing
+* Model fallback and retry strategies
+* Cost and latency optimization
+* Security controls (encryption, RBAC, secrets management)
+* Compliance support (GDPR, SOC 2 readiness, configurable data retention)
+
+## Architecture Summary
+
+At a high level, the system looks like this:
+
+```text
+Recruiter
+      │
+      ▼
+Frontend (Next.js)
+      │
+      ▼
+FastAPI Backend
+      │
+      ▼
+LangGraph Supervisor
+      │
+ ┌────┼───────────────────────────────────────────┐
+ │    │      │        │         │         │       │
+ ▼    ▼      ▼        ▼         ▼         ▼       ▼
+Job  Resume Matching Interview Email Analytics Policy
+Agent Agent   Agent     Agent     Agent   Agent    Agent
+ │
+ ▼
+Vector DB + PostgreSQL + Object Storage
+ │
+ ▼
+LLMs (GPT / Claude / Gemini / Local Models)
+```
+
+This architecture separates orchestration (LangGraph), business logic (FastAPI), persistent data (PostgreSQL/Object Storage), semantic retrieval (Vector DB), and AI capabilities (specialized agents). That separation makes the platform scalable, testable, and suitable for enterprise deployments rather than a prototype.
