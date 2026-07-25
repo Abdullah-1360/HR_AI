@@ -40,6 +40,7 @@ class RouterState(TypedDict):
     messages: list[BaseMessage]          # conversation messages
     estimated_tokens: int                # pre-computed prompt token estimate
     task_type: str                       # "general" | "coding" | "reasoning"
+    required_tags: Optional[list[str]]   # capability tags filter
 
     # --- Routing ---
     request_uuid: Optional[str]          # unique ID for this request
@@ -168,17 +169,36 @@ async def run_graph(
     user_message: str,
     task_type: str = "general",
     estimated_tokens: int = 500,
+    required_tags: list[str] | None = None,
 ) -> dict:
     """
     High-level helper to run the routing graph with a single user message.
     Returns the final RouterState dict.
     """
+    return await run_graph_messages(
+        [HumanMessage(content=user_message)],
+        task_type,
+        estimated_tokens,
+        required_tags,
+    )
+
+async def run_graph_messages(
+    messages: list[BaseMessage],
+    task_type: str = "general",
+    estimated_tokens: int = 500,
+    required_tags: list[str] | None = None,
+) -> dict:
+    """
+    High-level helper to run the routing graph with a list of messages.
+    Returns the final RouterState dict.
+    """
     app, _ = build_graph()
 
     initial_state: RouterState = {
-        "messages": [HumanMessage(content=user_message)],
+        "messages": messages,
         "estimated_tokens": estimated_tokens,
         "task_type": task_type,
+        "required_tags": required_tags,
         "request_uuid": str(uuid4()),
         "selected_model": None,
         "selected_provider": None,
