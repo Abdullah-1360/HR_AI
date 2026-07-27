@@ -71,8 +71,10 @@ class RouterNode:
             for mid in state.get("failed_models", [])
         ]
 
+        required_tags: list[str] = state.get("required_tags") or []
+
         candidate: Optional[ModelCandidate] = await select_model_waterfall(
-            pool, estimated_tokens, failed_models
+            pool, estimated_tokens, failed_models, required_tags
         )
 
         if candidate is None:
