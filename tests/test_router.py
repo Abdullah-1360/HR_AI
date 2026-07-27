@@ -420,6 +420,27 @@ async def test_selector_waterfall_none_when_all_exhausted():
         results.record("Selector: waterfall all exhausted", False, str(e))
 
 
+async def test_selector_respects_tags():
+    """Selector only picks models that have all required tags."""
+    pool = await get_test_pool()
+    try:
+        candidate = await select_model_waterfall(pool, 100, required_tags=["vision"])
+        if candidate is None:
+            results.record("Selector: respects required_tags", False, "No model found with 'vision' tag")
+            return
+
+        has_tag = await pool.fetchval("""
+            SELECT EXISTS (
+                SELECT 1 FROM model_tags mt
+                WHERE mt.model_id = $1 AND mt.tag = 'vision'
+            )
+        """, candidate.model_id)
+        results.record("Selector: respects required_tags ('vision')", has_tag,
+                       f"Selected model {candidate.model_name} lacks the required 'vision' tag")
+    except Exception as e:
+        results.record("Selector: respects required_tags", False, str(e))
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # 2. RESERVATION UNIT TESTS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1190,6 +1211,83 @@ async def test_concurrency_no_double_reservation():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# 9. CHATROUTER WRAPPER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def test_chat_router_happy_path():
+    """ChatRouter custom ChatModel successfully routes and invokes through the graph."""
+    from router.chat_model import ChatRouter
+    from router.router import RouterNode
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    mock_response = AIMessage(content="Hello from ChatRouter")
+    mock_response.usage_metadata = {"input_tokens": 10, "output_tokens": 5}
+
+    with patch.object(RouterNode, "_build_llm_client") as mock_build:
+        mock_llm = MagicMock()
+        mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+        mock_build.return_value = mock_llm
+
+        try:
+            llm = ChatRouter()
+            response = await llm.ainvoke([HumanMessage(content="Test chat router")])
+            ok = (
+                response is not None
+                and response.content == "Hello from ChatRouter"
+                and response.response_metadata.get("model_name") is not None
+            )
+            results.record("ChatRouter: custom chat model wrapper works", ok, f"Response: {response}")
+        except Exception as e:
+            results.record("ChatRouter: custom chat model wrapper works", False, str(e))
+
+
+async def test_chat_router_respects_tags():
+    """ChatRouter correctly passes down required_tags configured in invoke config."""
+    from router.chat_model import ChatRouter
+    from router.router import RouterNode
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    mock_response = AIMessage(content="Hello from tagged model")
+    mock_response.usage_metadata = {"input_tokens": 10, "output_tokens": 5}
+
+    captured_state = {}
+
+    # Patch select to capture the input state
+    async def select_spy(self, state):
+        nonlocal captured_state
+        captured_state = state.copy()
+        return {
+            **state,
+            "selected_model": "gemini-2.5-flash",
+            "selected_provider": "gemini",
+            "selected_model_id": "7f204af6-ce5d-4d3f-8f6f-ad725c3d1e68",
+            "selected_provider_id": "5285741e-355b-439d-b45d-da45cc0cd887",
+            "selected_base_url": "http://mock",
+            "selected_tier": "PRIMARY_FREE",
+            "reservation_id": "22ffabcd-1234-5678-abcd-1234567890ab",
+        }
+
+    with patch.object(RouterNode, "select", select_spy), \
+         patch.object(RouterNode, "_build_llm_client") as mock_build:
+         
+        mock_llm = MagicMock()
+        mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+        mock_build.return_value = mock_llm
+
+        try:
+            llm = ChatRouter()
+            await llm.ainvoke(
+                [HumanMessage(content="Test tags")],
+                config={"configurable": {"required_tags": ["vision", "coding"]}}
+            )
+            ok = captured_state.get("required_tags") == ["vision", "coding"]
+            results.record("ChatRouter: passes config required_tags to state", ok,
+                           f"Captured state required_tags: {captured_state.get('required_tags')}")
+        except Exception as e:
+            results.record("ChatRouter: passes config required_tags to state", False, str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # 8. STRUCTURED LOG FORMAT
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1265,6 +1363,7 @@ async def run_all_tests():
             test_selector_round_robin,
             test_selector_waterfall_falls_to_secondary,
             test_selector_waterfall_none_when_all_exhausted,
+            test_selector_respects_tags,
         ]),
         ("2. RESERVATION", [
             test_reservation_reserve_and_confirm,
@@ -1309,6 +1408,10 @@ async def run_all_tests():
         ]),
         ("8. STRUCTURED LOGGING", [
             test_logger_output_is_valid_json,
+        ]),
+        ("9. CHATROUTER WRAPPER", [
+            test_chat_router_happy_path,
+            test_chat_router_respects_tags,
         ]),
     ]
 
