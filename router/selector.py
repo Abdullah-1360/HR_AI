@@ -62,6 +62,14 @@ WHERE
     AND m.id != ALL($1::uuid[])
     AND m.tier = $2::tier_enum
     AND (
+        $4::text[] IS NULL 
+        OR (
+            SELECT COUNT(DISTINCT mt.tag) 
+            FROM model_tags mt 
+            WHERE mt.model_id = m.id AND mt.tag = ANY($4::text[])
+        ) = array_length($4::text[], 1)
+    )
+    AND (
         -- Model has no quota definitions (e.g. LOCAL tier) OR all active windows have headroom
         NOT EXISTS (
             SELECT 1 FROM quota_definitions qd2
@@ -111,6 +119,7 @@ async def select_model(
     tier: str,
     estimated_tokens: int,
     excluded_model_ids: list[UUID] | None = None,
+    required_tags: list[str] | None = None,
 ) -> Optional[ModelCandidate]:
     """
     Select the best model for a given tier using round-robin + latency weighting.
@@ -120,6 +129,8 @@ async def select_model(
     enabling atomic round-robin across multiple workers.
     """
     excluded = excluded_model_ids or []
+    # If required_tags is empty, treat it as None/NULL in SQL
+    tags = required_tags if required_tags else None
 
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -129,6 +140,7 @@ async def select_model(
                 excluded,
                 tier,
                 estimated_tokens,
+                tags,
             )
             if row is None:
                 return None
@@ -160,6 +172,7 @@ async def select_model_waterfall(
     pool: asyncpg.Pool,
     estimated_tokens: int,
     excluded_model_ids: list[UUID] | None = None,
+    required_tags: list[str] | None = None,
 ) -> Optional[ModelCandidate]:
     """
     Walk the tier waterfall (PRIMARY_FREE → LOCAL) and return the first
@@ -167,7 +180,7 @@ async def select_model_waterfall(
     """
     excluded = excluded_model_ids or []
     for tier in TIER_ORDER:
-        candidate = await select_model(pool, tier, estimated_tokens, excluded)
+        candidate = await select_model(pool, tier, estimated_tokens, excluded, required_tags)
         if candidate is not None:
             return candidate
         logger.debug("Tier %s exhausted, falling to next tier", tier)
