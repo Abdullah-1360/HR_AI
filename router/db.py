@@ -34,7 +34,8 @@ async def get_pool() -> asyncpg.Pool:
                     min_size=2,
                     max_size=20,
                     command_timeout=10,
-                    statement_cache_size=100,
+                    statement_cache_size=0,
+                    max_cached_statement_lifetime=0,
                 )
                 logger.info("asyncpg pool created (min=2, max=20)")
     return _pool
