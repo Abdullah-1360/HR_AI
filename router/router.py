@@ -339,6 +339,16 @@ class RouterNode:
                 cohere_api_key=os.environ["COHERE_API_KEY"],
             )
 
+        elif provider_name == "cloudflare":
+            from langchain_openai import ChatOpenAI
+            cf_account_id = os.environ["CF_ACCOUNT_ID"]
+            cf_api_token = os.environ["CF_API_TOKEN"]
+            return ChatOpenAI(
+                model=model_name,
+                base_url=f"https://api.cloudflare.com/client/v4/accounts/{cf_account_id}/ai/v1",
+                api_key=cf_api_token,
+            )
+
         elif provider_name == "local":
             from langchain_openai import ChatOpenAI
             return ChatOpenAI(
