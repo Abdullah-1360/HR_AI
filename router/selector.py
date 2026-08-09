@@ -129,7 +129,6 @@ async def select_model(
     enabling atomic round-robin across multiple workers.
     """
     excluded = excluded_model_ids or []
-    # If required_tags is empty, treat it as None/NULL in SQL
     tags = required_tags if required_tags else None
 
     async with pool.acquire() as conn:
